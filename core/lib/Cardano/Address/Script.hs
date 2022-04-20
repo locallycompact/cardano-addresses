@@ -105,6 +105,8 @@ import qualified Cardano.Codec.Bech32.Prefixes as CIP5
 import qualified Cardano.Codec.Cbor as CBOR
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.CBOR.Encoding as CBOR
+import qualified Data.Aeson.KeyMap as KM
+import qualified Data.Aeson.Key as K
 import qualified Data.Aeson.Types as Json
 import qualified Data.ByteString as BS
 import qualified Data.HashMap.Strict as HM
@@ -750,8 +752,7 @@ instance ToJSON ScriptTemplate where
                , "template" .= toJSON template']
       where
         toPair (cosigner', xpub) =
-            ( cosignerToText cosigner'
-            , encodeXPub xpub )
+            (K.fromText $ cosignerToText cosigner') .= encodeXPub xpub
 
 instance FromJSON (Script Cosigner) where
     parseJSON v = fromScriptJson parserCosigner backtrack v
@@ -784,9 +785,9 @@ instance FromJSON ScriptTemplate where
         ScriptTemplate <$> (Map.fromList <$> cosigners') <*> template'
       where
         parseCosignerPairs = withObject "Cosigner pairs" $ \o ->
-            case HM.toList o of
+            case KM.toList o of
                 [] -> fail "Cosigners object array should not be empty"
                 cs -> for (reverse cs) $ \(numTxt, str) -> do
-                    cosigner' <- parseJSON @Cosigner (String numTxt)
+                    cosigner' <- parseJSON @Cosigner $ (String $ K.toText numTxt)
                     xpub <- parseXPub str
                     pure (cosigner', xpub)
